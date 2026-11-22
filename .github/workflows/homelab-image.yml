@@ -1,11 +1,16 @@
 name: homelab image
 
-# Builds the patched Umami (replay previews, page URLs, website config file) for the homelab.
-# Tags: ghcr.io/mitchross/umami:<upstream version>-homelab.<short sha>, plus `homelab`.
+# Publishes ghcr.io/mitchross/umami:<tag> for a release tag like 3.5.0-homelab.1:
+# the upstream version it is based on, then a fork release number that resets on each rebase.
+# Tags have no `v` prefix, so upstream's own release workflow (tags v*.*.*) never runs here.
 on:
   push:
-    branches: [homelab]
+    tags: ['*-homelab.*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to rebuild, e.g. 3.5.0-homelab.1
+        required: true
 
 permissions:
   contents: read
@@ -16,12 +21,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
-      - name: Image tags
+      - name: Check the tag
         id: meta
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           version=$(node -p "require('./package.json').version")
-          echo "tag=${version}-homelab.${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          if ! [[ "$TAG" =~ ^${version//./\\.}-homelab\.[0-9]+$ ]]; then
+            echo "Tag $TAG must be ${version}-homelab.<number> (package.json is ${version})." >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -37,8 +50,9 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: |
-            ghcr.io/mitchross/umami:${{ steps.meta.outputs.tag }}
-            ghcr.io/mitchross/umami:homelab
+          tags: ghcr.io/mitchross/umami:${{ steps.meta.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/mitchross/umami
+            org.opencontainers.image.version=${{ steps.meta.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
