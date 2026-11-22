@@ -33,7 +33,10 @@ import { addCustomEvent, record } from 'rrweb';
 
   const hostBase = host.replace(/\/$/, '');
   const endpoint = `${hostBase}/api/record`;
-  const configEndpoint = `${hostBase}/api/websites/${website}/recorder`;
+  const configEndpoint =
+    website === 'auto'
+      ? `${hostBase}/api/websites/auto/recorder?hostname=${encodeURIComponent(location.hostname)}`
+      : `${hostBase}/api/websites/${website}/recorder`;
 
   const REPLAY_FLUSH_EVENT_COUNT = 100;
   const REPLAY_FLUSH_INTERVAL = 2000;

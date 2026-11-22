@@ -168,6 +168,25 @@ describe('record route cache token binding', () => {
     expect(saveRecording).not.toHaveBeenCalled();
   });
 
+  test('auto uses the website signed into the cache token', async () => {
+    vi.mocked(parseToken).mockResolvedValue({ type: 'cache', websiteId, sessionId, visitId });
+
+    const response = await post('auto');
+
+    expect(response.status).toBe(200);
+    expect(getWebsite).toHaveBeenCalledWith(websiteId);
+    expect(saveRecording).toHaveBeenCalled();
+  });
+
+  test('auto rejects a token without a websiteId', async () => {
+    vi.mocked(parseToken).mockResolvedValue({ type: 'cache', sessionId, visitId });
+
+    const response = await post('auto');
+
+    expect(response.status).toBe(400);
+    expect(saveRecording).not.toHaveBeenCalled();
+  });
+
   test('accepts a cache token bound to the same website', async () => {
     vi.mocked(parseToken).mockResolvedValue({ type: 'cache', websiteId, sessionId, visitId });
 

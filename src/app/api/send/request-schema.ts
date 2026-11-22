@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { errorCollectionSchema } from '@/lib/errors/schema';
 import { anyObjectParam, unixTimestampParam, urlOrPathParam } from '@/lib/schema';
+import { AUTO_WEBSITE_ID } from '@/lib/website-config';
 
 // Reject strings whose first character is a spreadsheet formula trigger to
 // prevent CSV formula injection in analytics exports (defense-in-depth).
@@ -82,7 +83,8 @@ function isRevenueOutOfRange(data?: Record<string, any>) {
 }
 
 const payloadSchema = z.object({
-  website: z.uuid().optional(),
+  // `auto` asks the server to find the website by `hostname` (WEBSITES_CONFIG).
+  website: z.union([z.uuid(), z.literal(AUTO_WEBSITE_ID)]).optional(),
   link: z.uuid().optional(),
   pixel: z.uuid().optional(),
   data: dataParam.optional(),

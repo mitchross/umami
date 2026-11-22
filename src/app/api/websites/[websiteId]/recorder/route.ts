@@ -1,6 +1,8 @@
 import { corsPreflight, getApiCorsHeaders, withCorsHeaders } from '@/lib/cors';
 import { getRecorderConfig } from '@/lib/recorder';
 import { parseRequest } from '@/lib/request';
+import { AUTO_WEBSITE_ID } from '@/lib/website-config';
+import { resolveWebsiteByHostname } from '@/lib/website-provision';
 import { getWebsite } from '@/queries/prisma';
 
 export function OPTIONS() {
@@ -17,8 +19,13 @@ export async function GET(
     return withCorsHeaders(error());
   }
 
-  const { websiteId } = await params;
-  const website = await getWebsite(websiteId);
+  const { websiteId: requestedWebsite } = await params;
+  // `auto` recorders send the page hostname, because this GET has no body.
+  const websiteId =
+    requestedWebsite === AUTO_WEBSITE_ID
+      ? await resolveWebsiteByHostname(new URL(request.url).searchParams.get('hostname'))
+      : requestedWebsite;
+  const website = websiteId ? await getWebsite(websiteId) : null;
 
   const headers = {
     ...getApiCorsHeaders(),

@@ -12,7 +12,6 @@ set -e
 export PATH="$PWD/node_modules/.bin:$PATH"
 
 node scripts/check-db.js
-node scripts/provision-websites.js
 node scripts/update-tracker.js
 
 # Next's standalone server binds to $HOSTNAME. Some runtimes (e.g. Podman pods)

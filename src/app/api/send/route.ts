@@ -10,6 +10,8 @@ import { fetchWebsite } from '@/lib/load';
 import { parseRequest } from '@/lib/request';
 import { badRequest, forbidden, json, serverError } from '@/lib/response';
 import { safeDecodeURI, safeDecodeURIComponent } from '@/lib/url';
+import { AUTO_WEBSITE_ID } from '@/lib/website-config';
+import { resolveWebsiteByHostname } from '@/lib/website-provision';
 import {
   createSession,
   saveEvent,
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
     }
 
     const {
-      website: websiteId,
+      website: requestedWebsite,
       pixel: pixelId,
       link: linkId,
       hostname,
@@ -57,6 +59,15 @@ export async function POST(request: Request) {
       fcp,
       ttfb,
     } = payload;
+
+    const websiteId =
+      requestedWebsite === AUTO_WEBSITE_ID
+        ? await resolveWebsiteByHostname(hostname)
+        : requestedWebsite;
+
+    if (requestedWebsite === AUTO_WEBSITE_ID && !websiteId) {
+      return badRequest({ message: 'Website not found.' });
+    }
 
     const sourceId = websiteId || pixelId || linkId;
 

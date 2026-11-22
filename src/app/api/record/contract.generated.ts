@@ -30,8 +30,13 @@ const operation1 = defineOperation({
                     type: 'object',
                     properties: {
                       website: {
-                        type: 'string',
-                        format: 'uuid',
+                        anyOf: [
+                          {
+                            type: 'string',
+                            format: 'uuid',
+                          },
+                          {},
+                        ],
                       },
                       events: {
                         type: 'array',
@@ -59,8 +64,13 @@ const operation1 = defineOperation({
                     type: 'object',
                     properties: {
                       website: {
-                        type: 'string',
-                        format: 'uuid',
+                        anyOf: [
+                          {
+                            type: 'string',
+                            format: 'uuid',
+                          },
+                          {},
+                        ],
                       },
                       events: {
                         type: 'array',

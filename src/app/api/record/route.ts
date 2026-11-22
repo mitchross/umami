@@ -12,6 +12,7 @@ import { getReplayEventCount } from '@/lib/replay';
 import { parseRequest } from '@/lib/request';
 import { badRequest, forbidden, json, payloadTooLarge, serverError } from '@/lib/response';
 import { unixTimestampParam } from '@/lib/schema';
+import { AUTO_WEBSITE_ID } from '@/lib/website-config';
 import { getWebsite } from '@/queries/prisma';
 import { saveRecording } from '@/queries/sql';
 import { saveHeatmapEvents } from '@/queries/sql/heatmap/saveHeatmapEvents';
@@ -29,7 +30,7 @@ const schema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('record'),
     payload: z.object({
-      website: z.uuid(),
+      website: z.union([z.uuid(), z.literal(AUTO_WEBSITE_ID)]),
       events: z.array(z.any()).max(200),
       timestamp: unixTimestampParam.optional(),
     }),
@@ -37,7 +38,7 @@ const schema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('heatmap'),
     payload: z.object({
-      website: z.uuid(),
+      website: z.union([z.uuid(), z.literal(AUTO_WEBSITE_ID)]),
       events: z
         .array(
           z.discriminatedUnion('type', [
@@ -124,7 +125,7 @@ export async function POST(request: Request) {
       return withCorsHeaders(error());
     }
 
-    const { website: websiteId } = body.payload;
+    const { website: requestedWebsite } = body.payload;
     const events = body.payload.events;
     const timestamp = body.payload.timestamp;
 
@@ -140,6 +141,8 @@ export async function POST(request: Request) {
     }
 
     const cache = (await parseToken(cacheHeader, secret())) as Cache | null;
+    // `auto` trackers use the website that /api/send resolved and signed into the token.
+    const websiteId = requestedWebsite === AUTO_WEBSITE_ID ? cache?.websiteId : requestedWebsite;
 
     // Only accept cache tokens minted by /api/send, and only for the website they
     // were issued to. Otherwise a token from one website could be replayed to write
@@ -148,6 +151,7 @@ export async function POST(request: Request) {
       cache?.type !== CACHE_TOKEN_TYPE ||
       !cache.sessionId ||
       !cache.visitId ||
+      !websiteId ||
       cache.websiteId !== websiteId
     ) {
       return withCorsHeaders(badRequest({ message: 'Invalid session token.' }));
