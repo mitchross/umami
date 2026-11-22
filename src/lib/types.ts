@@ -295,6 +295,8 @@ export interface SessionReplaySummary {
   endedAt: Date | string;
   duration: number;
   createdAt: Date | string;
+  entryUrl?: string | null;
+  pageCount?: number;
 }
 
 export interface SessionActivity {

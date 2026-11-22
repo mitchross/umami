@@ -234,6 +234,12 @@ const operation1 = defineOperation({
                         ],
                         description: 'Date and time the record was created.',
                       },
+                      entryUrl: {
+                        type: 'string',
+                      },
+                      pageCount: {
+                        type: 'number',
+                      },
                     },
                     required: [
                       'id',

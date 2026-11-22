@@ -2,7 +2,9 @@ import { expect, test } from 'vitest';
 import {
   canReplayEvents,
   getReplayEventCount,
+  getReplayPageChanges,
   getReplayPlayerEvents,
+  getReplayUrlAt,
   getReplayViewport,
   hasReplayableFullSnapshot,
   hasReplayFullSnapshot,
@@ -134,4 +136,38 @@ test('getReplayEventCount counts a fragment group as one event', () => {
       { type: 3 },
     ]),
   ).toBe(3);
+});
+
+test('getReplayPageChanges aligns pageviews to the replay clock', () => {
+  const events = [
+    { type: 4, timestamp: 10_000, data: { href: 'https://a.test/x', width: 1, height: 1 } },
+    { type: 2, timestamp: 10_010, data: {} },
+  ];
+  const pages = [
+    { url: 'a.test/x', createdAt: new Date(70_000).toISOString() },
+    { url: 'a.test/x', createdAt: new Date(71_000).toISOString() },
+    { url: 'a.test/y', createdAt: new Date(75_000).toISOString() },
+  ];
+  const changes = getReplayPageChanges(events, pages);
+
+  expect(changes).toEqual([
+    { url: 'a.test/x', timestamp: 10_000 },
+    { url: 'a.test/y', timestamp: 15_000 },
+  ]);
+  expect(getReplayUrlAt(changes, 9_000)).toBe('a.test/x');
+  expect(getReplayUrlAt(changes, 14_999)).toBe('a.test/x');
+  expect(getReplayUrlAt(changes, 15_000)).toBe('a.test/y');
+});
+
+test('getReplayPageChanges falls back to rrweb meta hrefs', () => {
+  const events = [
+    { type: 4, timestamp: 1_000, data: { href: 'https://a.test/one' } },
+    { type: 4, timestamp: 5_000, data: { href: 'https://a.test/two' } },
+  ];
+
+  expect(getReplayPageChanges(events, [])).toEqual([
+    { url: 'a.test/one', timestamp: 1_000 },
+    { url: 'a.test/two', timestamp: 5_000 },
+  ]);
+  expect(getReplayUrlAt([], 1)).toBeNull();
 });

@@ -75,7 +75,7 @@ RUN printf "allowBuilds:\n  '@prisma/engines': true\n  prisma: false\nverifyDeps
     && rm /tmp/pnpm-workspace.yaml
 
 # Script dependencies
-RUN pnpm add npm-run-all dotenv chalk semver \
+RUN pnpm add npm-run-all dotenv chalk semver yaml \
     prisma@${PRISMA_VERSION} \
     @prisma/client@${PRISMA_VERSION} \
     @prisma/adapter-pg@${PRISMA_VERSION}

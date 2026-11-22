@@ -68,8 +68,41 @@ const operation1 = defineOperation({
                   type: 'number',
                   description: 'Number of stored recording chunks.',
                 },
+                pages: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      url: {
+                        type: 'string',
+                        description: 'URL associated with the resource.',
+                      },
+                      createdAt: {
+                        anyOf: [
+                          {
+                            type: 'string',
+                          },
+                          {
+                            type: 'string',
+                            format: 'date-time',
+                          },
+                        ],
+                        description: 'Date and time the record was created.',
+                      },
+                    },
+                    required: ['url', 'createdAt'],
+                  },
+                },
               },
-              required: ['sessionId', 'events', 'startedAt', 'endedAt', 'eventCount', 'chunkCount'],
+              required: [
+                'sessionId',
+                'events',
+                'startedAt',
+                'endedAt',
+                'eventCount',
+                'chunkCount',
+                'pages',
+              ],
             },
           },
         },

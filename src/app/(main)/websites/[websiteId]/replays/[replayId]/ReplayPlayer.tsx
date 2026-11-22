@@ -1,9 +1,15 @@
 'use client';
-import { Column } from '@umami/react-zen';
+import { Column, Icon } from '@umami/react-zen';
+import { Globe } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Empty } from '@/components/common/Empty';
 import { useMobile } from '@/components/hooks';
-import { getReplayPlayerEvents, getReplayViewport } from '@/lib/replay';
+import {
+  getReplayPageChanges,
+  getReplayPlayerEvents,
+  getReplayUrlAt,
+  getReplayViewport,
+} from '@/lib/replay';
 import 'rrweb-player/dist/style.css';
 
 const DEFAULT_REPLAY_ASPECT_RATIO = 9 / 16;
@@ -23,7 +29,13 @@ function destroyReplayPlayer(player: { $destroy?: () => void } | null) {
   }
 }
 
-export function ReplayPlayer({ events }: { events: any[] }) {
+export function ReplayPlayer({
+  events,
+  pages,
+}: {
+  events: any[];
+  pages?: { url: string; createdAt: Date | string }[];
+}) {
   const playerWrapperRef = useRef<HTMLDivElement>(null);
   const playerRootRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
@@ -36,6 +48,11 @@ export function ReplayPlayer({ events }: { events: any[] }) {
   const replayEvents = useMemo(() => getReplayPlayerEvents(events), [events]);
   const replayViewport = useMemo(() => getReplayViewport(replayEvents), [replayEvents]);
   const canReplay = replayEvents.length >= 2;
+  const pageChanges = useMemo(() => getReplayPageChanges(events, pages), [events, pages]);
+  const replayStart = replayEvents[0]?.timestamp ?? 0;
+  const [currentTime, setCurrentTime] = useState(0);
+  const currentUrl = getReplayUrlAt(pageChanges, replayStart + currentTime);
+  const currentPage = pageChanges.findIndex(change => change.url === currentUrl) + 1;
   const showUnavailable = !events?.length || !canReplay || playerError;
 
   const preferredPlayerWidth = isPhone ? 360 : isMobile ? 640 : 1024;
@@ -130,6 +147,14 @@ export function ReplayPlayer({ events }: { events: any[] }) {
             return;
           }
 
+          (player as any).addEventListener?.('ui-update-current-time', (event: any) => {
+            const time = Number(event?.payload);
+
+            if (Number.isFinite(time)) {
+              setCurrentTime(time);
+            }
+          });
+
           playerRef.current = player;
         } catch {
           playerRoot.replaceChildren();
@@ -159,6 +184,45 @@ export function ReplayPlayer({ events }: { events: any[] }) {
 
   return (
     <Column alignItems="center" width="100%">
+      {currentUrl && !showUnavailable && (
+        <div
+          title={currentUrl}
+          style={{
+            width: playerWidth,
+            maxWidth: '100%',
+            marginBottom: '8px',
+            padding: '6px 10px',
+            borderRadius: '8px',
+            border: '1px solid var(--zen-border)',
+            background: 'var(--zen-surface-sunken)',
+            fontFamily: 'monospace',
+            fontSize: '13px',
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'center',
+          }}
+        >
+          <Icon size="sm">
+            <Globe />
+          </Icon>
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {currentUrl}
+          </span>
+          {pageChanges.length > 1 && (
+            <span style={{ opacity: 0.6, whiteSpace: 'nowrap' }}>
+              {currentPage}/{pageChanges.length}
+            </span>
+          )}
+        </div>
+      )}
       <div
         ref={playerWrapperRef}
         style={{ width: '100%', display: 'flex', justifyContent: 'center' }}

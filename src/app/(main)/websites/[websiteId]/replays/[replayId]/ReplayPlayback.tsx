@@ -197,7 +197,7 @@ export function ReplayPlayback({
               </Row>
             </Row>
           )}
-          <ReplayPlayer events={replay.events} />
+          <ReplayPlayer events={replay.events} pages={replay.pages} />
           {showSessionInfo && session && <SessionInfo data={session} />}
         </Column>
       )}

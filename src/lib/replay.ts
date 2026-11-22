@@ -209,3 +209,69 @@ export function getReplayPlayerEvents(events: any[] | null | undefined) {
 export function canReplayEvents(events: any[] | null | undefined) {
   return getReplayPlayerEvents(events).length >= 2;
 }
+
+export interface ReplayPageChange {
+  url: string;
+  timestamp: number;
+}
+
+/**
+ * Page changes during a replay, oldest first. Umami pageviews catch client-side navigation;
+ * rrweb meta events (full page loads) fill in when no pageview was recorded.
+ */
+export function getReplayPageChanges(
+  events: any[] | null | undefined,
+  pages: { url: string; createdAt: Date | string }[] | null | undefined,
+): ReplayPageChange[] {
+  const changes: ReplayPageChange[] = [];
+  // Pageviews carry server time and rrweb events carry the visitor's clock; align them on the
+  // first page load so a skewed client clock does not shift every URL.
+  const firstMeta = Array.isArray(events)
+    ? events.find(
+        event => event?.type === RRWEB_EVENT_TYPE.Meta && getReplayTimestamp(event) !== null,
+      )
+    : null;
+  const firstPageTime = pages?.length ? new Date(pages[0]?.createdAt).getTime() : NaN;
+  const skew =
+    firstMeta && Number.isFinite(firstPageTime)
+      ? (getReplayTimestamp(firstMeta) as number) - firstPageTime
+      : 0;
+
+  for (const page of pages ?? []) {
+    const timestamp = new Date(page?.createdAt).getTime() + skew;
+
+    if (page?.url && Number.isFinite(timestamp)) {
+      changes.push({ url: page.url, timestamp });
+    }
+  }
+
+  if (!changes.length && Array.isArray(events)) {
+    for (const event of events) {
+      const timestamp = getReplayTimestamp(event);
+      const href = event?.type === RRWEB_EVENT_TYPE.Meta ? event?.data?.href : null;
+
+      if (typeof href === 'string' && href && timestamp !== null) {
+        changes.push({ url: href.replace(/^https?:\/\//, ''), timestamp });
+      }
+    }
+  }
+
+  changes.sort((a, b) => a.timestamp - b.timestamp);
+
+  return changes.filter((change, index) => index === 0 || change.url !== changes[index - 1].url);
+}
+
+/** The page shown at `timestamp`: the last change at or before it, else the first page. */
+export function getReplayUrlAt(changes: ReplayPageChange[], timestamp: number) {
+  let current = changes[0]?.url ?? null;
+
+  for (const change of changes) {
+    if (change.timestamp > timestamp) {
+      break;
+    }
+
+    current = change.url;
+  }
+
+  return current;
+}

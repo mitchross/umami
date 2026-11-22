@@ -2,7 +2,7 @@ import { restoreReplayEventFragments } from '@/lib/replay';
 import { parseRequest } from '@/lib/request';
 import { json, unauthorized } from '@/lib/response';
 import { canViewAuthenticatedWebsite } from '@/permissions';
-import { getReplayChunks } from '@/queries/sql';
+import { getReplayChunks, getReplayPages } from '@/queries/sql';
 
 function getEventTimestamp(event: any): number | null {
   const timestamp = Number(event?.timestamp);
@@ -91,7 +91,10 @@ export async function GET(
     return unauthorized();
   }
 
-  const chunks = await getReplayChunks(websiteId, replayId, { endAt, endChunkIndex });
+  const [chunks, pages] = await Promise.all([
+    getReplayChunks(websiteId, replayId, { endAt, endChunkIndex }),
+    getReplayPages(websiteId, replayId),
+  ]);
   const allEvents = restoreReplayEventFragments(
     mergeReplayEvents(chunks, { until, endChunkIndex, endEventIndex }),
   );
@@ -106,5 +109,6 @@ export async function GET(
     endedAt,
     eventCount: allEvents.length,
     chunkCount: chunks.length,
+    pages,
   });
 }

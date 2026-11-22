@@ -45,7 +45,11 @@ async function relationalQuery(websiteId: string, filters: QueryFilters, session
            or session.city ilike {{search}}
            or session.browser ilike {{search}}
            or session.os ilike {{search}}
-           or session.device ilike {{search}})`
+           or session.device ilike {{search}}
+           or exists (select 1 from website_event we
+                      where we.website_id = sr.website_id
+                        and we.visit_id = sr.visit_id
+                        and we.url_path ilike {{search}}))`
     : '';
 
   const havingQuery = minDurationMs
@@ -68,7 +72,12 @@ async function relationalQuery(websiteId: string, filters: QueryFilters, session
       min(sr.started_at) as "startedAt",
       max(sr.ended_at) as "endedAt",
       (extract(epoch from max(sr.ended_at) - min(sr.started_at)) * 1000)::bigint as "duration",
-      max(sr.created_at) as "createdAt"
+      max(sr.created_at) as "createdAt",
+      (select concat(we.hostname, we.url_path) from website_event we
+        where we.website_id = sr.website_id and we.visit_id = sr.visit_id and we.event_type = 1
+        order by we.created_at limit 1) as "entryUrl",
+      (select count(*) from website_event we
+        where we.website_id = sr.website_id and we.visit_id = sr.visit_id and we.event_type = 1)::int as "pageCount"
     from session_replay sr
     join session on session.session_id = sr.session_id
       and session.website_id = sr.website_id
@@ -110,7 +119,8 @@ async function clickhouseQuery(websiteId: string, filters: QueryFilters, session
            or (positionCaseInsensitive(city, {search:String}) > 0)
            or (positionCaseInsensitive(browser, {search:String}) > 0)
            or (positionCaseInsensitive(os, {search:String}) > 0)
-           or (positionCaseInsensitive(device, {search:String}) > 0))`
+           or (positionCaseInsensitive(device, {search:String}) > 0)
+           or (positionCaseInsensitive(url_path, {search:String}) > 0))`
     : '';
 
   const havingQuery = minDurationMs
@@ -133,8 +143,21 @@ async function clickhouseQuery(websiteId: string, filters: QueryFilters, session
       min(session_replay.started_at) as startedAt,
       max(session_replay.ended_at) as endedAt,
       toInt64(toUnixTimestamp64Milli(max(session_replay.ended_at)) - toUnixTimestamp64Milli(min(session_replay.started_at))) as duration,
-      max(session_replay.created_at) as createdAt
+      max(session_replay.created_at) as createdAt,
+      any(pages.entryUrl) as entryUrl,
+      toInt32(any(pages.pageCount)) as pageCount
     from session_replay
+    left join (
+      select visit_id,
+        argMin(concat(hostname, url_path), created_at) as entryUrl,
+        count() as pageCount
+      from website_event
+      where website_id = {websiteId:UUID}
+        and created_at between {startDate:DateTime64} and {endDate:DateTime64}
+        and event_type = 1
+      group by visit_id
+    ) pages
+    on pages.visit_id = session_replay.visit_id
     join (
       select distinct website_id, session_id, visit_id, browser, os, device, country, city
       from website_event
