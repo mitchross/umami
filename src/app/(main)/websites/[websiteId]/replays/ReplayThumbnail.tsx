@@ -115,6 +115,13 @@ export function ReplayThumbnail({
         });
 
         replayer = instance;
+
+        // rrweb-player's global stylesheet centers every .replayer-wrapper; pin this one to the corner.
+        const wrapper = stage.querySelector<HTMLElement>('.replayer-wrapper');
+
+        if (wrapper) {
+          Object.assign(wrapper.style, { left: '0', top: '0', transform: 'none', float: 'none' });
+        }
         instance.pause(Math.min(1000, events[events.length - 1].timestamp - events[0].timestamp));
       } catch {
         if (!cancelled) setFailed(true);
