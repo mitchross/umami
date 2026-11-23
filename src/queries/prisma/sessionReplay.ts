@@ -65,6 +65,33 @@ export async function deleteReplaysByWebsite(websiteId: string) {
   });
 }
 
+/** Permanently deletes the given replays (by visit ID) and their saved entries. Events stay. */
+export async function deleteReplays(websiteId: string, visitIds: string[]): Promise<number> {
+  if (visitIds.length === 0) {
+    return 0;
+  }
+
+  const transaction = prisma.transaction as <T>(input: (tx: any) => Promise<T>) => Promise<T>;
+
+  return transaction(async tx => {
+    const found = await tx.sessionReplay.findMany({
+      where: { websiteId, visitId: { in: visitIds } },
+      distinct: ['visitId'],
+      select: { visitId: true },
+    });
+
+    await tx.sessionReplaySaved.deleteMany({
+      where: { websiteId, visitId: { in: visitIds } },
+    });
+
+    await tx.sessionReplay.deleteMany({
+      where: { websiteId, visitId: { in: visitIds } },
+    });
+
+    return found.length as number;
+  });
+}
+
 export async function getReplaySaved(websiteId: string, visitId: string): Promise<boolean> {
   const record = await prisma.client.sessionReplaySaved.findUnique({
     where: { websiteId_visitId: { websiteId, visitId } },

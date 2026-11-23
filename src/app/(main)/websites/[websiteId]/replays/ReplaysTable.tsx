@@ -1,4 +1,11 @@
-import { Button, DataColumn, DataTable, type DataTableProps, Icon } from '@umami/react-zen';
+import {
+  Button,
+  DataColumn,
+  DataTable,
+  type DataTableProps,
+  Icon,
+  TableSelectionCheckbox,
+} from '@umami/react-zen';
 import { Play } from 'lucide-react';
 import { useEffect } from 'react';
 import { Avatar } from '@/components/common/Avatar';
@@ -29,6 +36,11 @@ export function ReplaysTable({ websiteId, ...props }: DataTableProps & { website
 
   return (
     <DataTable {...props}>
+      {props.selectionMode === 'multiple' && (
+        <DataColumn id="select" label={<TableSelectionCheckbox />} width="40px">
+          {() => <TableSelectionCheckbox />}
+        </DataColumn>
+      )}
       <DataColumn id="play" label="" width="80px">
         {(row: any) => (
           <Button variant="quiet" onClick={() => router.push(updateParams({ replay: row.id }))}>

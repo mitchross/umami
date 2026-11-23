@@ -379,6 +379,9 @@ const operation1 = defineOperation({
             schema: {
               type: 'object',
               properties: {
+                canDelete: {
+                  type: 'boolean',
+                },
                 data: {
                   type: 'array',
                   items: {
@@ -526,7 +529,7 @@ const operation1 = defineOperation({
                   description: 'Whether the results were truncated by the maximum result limit.',
                 },
               },
-              required: ['data', 'count', 'page', 'pageSize'],
+              required: ['canDelete', 'data', 'count', 'page', 'pageSize'],
             },
           },
         },

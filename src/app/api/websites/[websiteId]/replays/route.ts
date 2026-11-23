@@ -1,3 +1,4 @@
+import { isRelationalOnly } from '@/lib/db';
 import { getQueryFilters, parseRequest } from '@/lib/request';
 import { json, unauthorized } from '@/lib/response';
 import {
@@ -7,7 +8,7 @@ import {
   searchParams,
   withDateRange,
 } from '@/lib/schema';
-import { canViewAuthenticatedWebsite } from '@/permissions';
+import { canDeleteWebsite, canViewAuthenticatedWebsite } from '@/permissions';
 import { getReplayDistinctIds, getSessionReplays } from '@/queries/sql';
 
 export async function GET(
@@ -41,8 +42,11 @@ export async function GET(
     data.data.map(({ id }) => id),
   );
 
+  const canDelete = isRelationalOnly() && (await canDeleteWebsite(auth, websiteId));
+
   return json({
     ...data,
+    canDelete,
     data: data.data.map(row => ({ ...row, distinctIds: distinctIds[row.id] })),
   });
 }

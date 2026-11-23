@@ -715,6 +715,11 @@ export const operationDescriptions: Record<string, OperationDescription> = {
     description:
       'Returns the merged recording events, session details, and event and chunk counts for a replay, with optional stopping points by timestamp, chunk, or event index.',
   },
+  'POST /api/websites/{websiteId}/replays/delete': {
+    summary: 'Delete session replays',
+    description:
+      'Permanently deletes the given replays and their saved entries. Events and sessions are kept. Relational storage only.',
+  },
   'GET /api/websites/{websiteId}/replays/saved': {
     summary: 'List saved session replays',
     description: 'Returns a paginated, searchable list of replays saved for the website.',

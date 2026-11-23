@@ -1,12 +1,13 @@
 # Fork: Umami with replay and provisioning additions
 
-This branch (`homelab`) is upstream Umami plus three changes. Each is meant to go upstream as
+This branch (`homelab`) is upstream Umami plus four changes. Each is meant to go upstream as
 its own pull request against `dev`.
 
 | Change | Where |
 |---|---|
 | Replay list: first-frame thumbnail, entry page, page count, search by path | `ReplaysTable.tsx`, `ReplayThumbnail.tsx`, `getSessionReplays.ts` |
 | Replay player: URL bar that follows the page during playback | `ReplayPlayer.tsx`, `getReplayPages.ts`, `lib/replay.ts` |
+| Replay list: select replays and delete them permanently (Postgres only; events stay) | `ReplaysDataTable.tsx`, `ReplaysDeleteButton.tsx`, `api/websites/[websiteId]/replays/delete` |
 | Websites by hostname (`data-website-id="auto"`) and `WEBSITES_CONFIG` | `lib/website-config.ts`, `lib/website-provision.ts`, `instrumentation.ts` |
 
 ## Websites config
