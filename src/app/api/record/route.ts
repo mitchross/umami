@@ -8,7 +8,7 @@ import { getClientInfo, hasBlockedIp } from '@/lib/detect';
 import { parseToken } from '@/lib/jwt';
 import { fetchAccount, fetchTeam, isWebsiteCollectionBlocked } from '@/lib/load';
 import { getRecorderConfig } from '@/lib/recorder';
-import { getReplayEventCount } from '@/lib/replay';
+import { getReplayEventCount, hasReplayInteraction } from '@/lib/replay';
 import { parseRequest } from '@/lib/request';
 import { badRequest, forbidden, json, payloadTooLarge, serverError } from '@/lib/response';
 import { unixTimestampParam } from '@/lib/schema';
@@ -225,6 +225,7 @@ export async function POST(request: Request) {
         chunkIndex,
         events,
         eventCount: getReplayEventCount(events),
+        hasInteraction: hasReplayInteraction(events),
         startedAt,
         endedAt,
       });

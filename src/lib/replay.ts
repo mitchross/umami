@@ -1,7 +1,17 @@
 export const RRWEB_EVENT_TYPE = {
   Meta: 4,
   FullSnapshot: 2,
+  IncrementalSnapshot: 3,
+  Custom: 5,
 } as const;
+
+// rrweb IncrementalSource values that only a person produces: MouseInteraction, Scroll, Input, TouchMove.
+const HUMAN_INCREMENTAL_SOURCES = new Set([2, 3, 5, 6]);
+
+// rrweb MouseInteraction types Focus and Blur can be fired by scripts, so they do not count.
+const NON_HUMAN_MOUSE_INTERACTIONS = new Set([5, 6]);
+
+export const REPLAY_HUMAN_INPUT_TAG = 'umami:human-input';
 
 export const REPLAY_EVENT_FRAGMENT_TYPE = 'umami:rrweb-event-fragment';
 
@@ -28,6 +38,30 @@ export function isReplayEventFragment(event: any): event is ReplayEventFragment 
     data.index < data.total &&
     typeof data?.value === 'string'
   );
+}
+
+export function hasReplayInteraction(events: any[] | null | undefined) {
+  if (!Array.isArray(events)) {
+    return false;
+  }
+
+  return events.some(event => {
+    if (event?.type === RRWEB_EVENT_TYPE.Custom) {
+      return event.data?.tag === REPLAY_HUMAN_INPUT_TAG;
+    }
+
+    if (event?.type !== RRWEB_EVENT_TYPE.IncrementalSnapshot) {
+      return false;
+    }
+
+    const { source, type } = event.data || {};
+
+    if (!HUMAN_INCREMENTAL_SOURCES.has(source)) {
+      return false;
+    }
+
+    return !(source === 2 && NON_HUMAN_MOUSE_INTERACTIONS.has(type));
+  });
 }
 
 export function getReplayEventCount(events: any[] | null | undefined) {

@@ -52,9 +52,9 @@ async function relationalQuery(websiteId: string, filters: QueryFilters, session
                         and we.url_path ilike {{search}}))`
     : '';
 
-  const havingQuery = minDurationMs
-    ? `having extract(epoch from max(sr.ended_at) - min(sr.started_at)) * 1000 >= {{minDurationMs}}`
-    : '';
+  // Hide visits where every chunk is known to have no human input; null (older rows) counts as unknown and stays.
+  const havingQuery = `having bool_or(coalesce(sr.has_interaction, true))
+    ${minDurationMs ? 'and extract(epoch from max(sr.ended_at) - min(sr.started_at)) * 1000 >= {{minDurationMs}}' : ''}`;
 
   return pagedRawQuery(
     `

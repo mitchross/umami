@@ -45,7 +45,19 @@ import { addCustomEvent, record } from 'rrweb';
   const REPLAY_FRAGMENT_TOTAL_PLACEHOLDER = 999999999;
   const RRWEB_EVENT_TYPE = {
     FullSnapshot: 2,
+    Meta: 4,
   };
+  const REPLAY_HUMAN_INPUT_TAG = 'umami:human-input';
+  const REPLAY_HUMAN_INPUT_EVENTS = [
+    'scroll',
+    'wheel',
+    'pointerdown',
+    'mousedown',
+    'click',
+    'keydown',
+    'touchstart',
+  ];
+  const REPLAY_HELD_MAX_EVENTS = 2000;
   const HEATMAP_FLUSH_EVENT_COUNT = 20;
   const HEATMAP_FLUSH_INTERVAL = 5000;
 
@@ -66,6 +78,8 @@ import { addCustomEvent, record } from 'rrweb';
   let replayLastChunkIndex = 0;
   let replayStopped = false;
   let heatmapStarted = false;
+  let replayHumanInputSeen = false;
+  let replayHeldEvents = [];
 
   const getSessionCache = () => window.umami?.getSession?.()?.cache;
 
@@ -250,7 +264,10 @@ import { addCustomEvent, record } from 'rrweb';
 
       const candidate = [...chunk, event];
 
-      if (isReplayPayloadTooLarge(candidate, chunkTimestamp)) {
+      if (
+        chunk.length >= REPLAY_FLUSH_EVENT_COUNT ||
+        isReplayPayloadTooLarge(candidate, chunkTimestamp)
+      ) {
         if (chunk.length) {
           sendReplayChunk(chunk, chunkTimestamp, useKeepalive);
           chunk = [];
@@ -310,10 +327,18 @@ import { addCustomEvent, record } from 'rrweb';
     scheduleHeatmapFlush();
   };
 
+  const removeHumanInputListeners = () => {
+    REPLAY_HUMAN_INPUT_EVENTS.forEach(type => {
+      document.removeEventListener(type, onHumanInput, { capture: true });
+    });
+  };
+
   const stopReplay = () => {
     if (replayStopped) return;
 
     replayStopped = true;
+    replayHeldEvents = [];
+    removeHumanInputListeners();
 
     if (replayFlushTimer) clearInterval(replayFlushTimer);
     flushReplay();
@@ -446,14 +471,70 @@ import { addCustomEvent, record } from 'rrweb';
     };
   };
 
+  // Before any human input, keep only events since the latest snapshot so a replay can still start from it.
+  const holdReplayEvent = event => {
+    if (event?.type === RRWEB_EVENT_TYPE.Meta) {
+      replayHeldEvents = [event];
+      return;
+    }
+
+    if (isReplayFullSnapshot(event)) {
+      const last = replayHeldEvents[replayHeldEvents.length - 1];
+      replayHeldEvents = last?.type === RRWEB_EVENT_TYPE.Meta ? [last, event] : [event];
+      return;
+    }
+
+    replayHeldEvents.push(event);
+
+    if (replayHeldEvents.length > REPLAY_HELD_MAX_EVENTS) {
+      try {
+        record.takeFullSnapshot(true);
+      } catch {
+        replayHeldEvents = [];
+      }
+    }
+  };
+
+  function onHumanInput(event) {
+    if (!event?.isTrusted || replayHumanInputSeen || replayStopped) return;
+
+    replayHumanInputSeen = true;
+    replayStartTime = Date.now();
+    removeHumanInputListeners();
+
+    const held = replayHeldEvents;
+    replayHeldEvents = [];
+
+    if (held.length) {
+      sendReplayEvents(held, getReplayChunkIndex());
+    }
+
+    try {
+      addCustomEvent(REPLAY_HUMAN_INPUT_TAG, { type: event.type });
+    } catch {
+      // recording already stopped
+    }
+
+    flushReplay();
+  }
+
   const beginReplayCapture = () => {
     replayStartTime = Date.now();
+
+    REPLAY_HUMAN_INPUT_EVENTS.forEach(type => {
+      document.addEventListener(type, onHumanInput, { capture: true, passive: true });
+    });
 
     replayFlushTimer = setInterval(() => flushReplay(), REPLAY_FLUSH_INTERVAL);
 
     replayStopFn = record({
       emit(event) {
         if (replayStopped) return;
+
+        if (!replayHumanInputSeen) {
+          holdReplayEvent(event);
+          return;
+        }
 
         if (Date.now() - replayStartTime > maxDuration) {
           stopReplay();

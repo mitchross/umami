@@ -194,7 +194,31 @@ describe('record route cache token binding', () => {
 
     expect(response.status).toBe(200);
     expect(saveRecording).toHaveBeenCalledWith(
-      expect.objectContaining({ websiteId, sessionId, visitId }),
+      expect.objectContaining({ websiteId, sessionId, visitId, hasInteraction: false }),
     );
+  });
+
+  test('marks chunks that contain human input', async () => {
+    vi.mocked(parseToken).mockResolvedValue({ type: 'cache', websiteId, sessionId, visitId });
+    parseRequestMock.mockResolvedValue({
+      body: {
+        type: 'record',
+        payload: {
+          website: websiteId,
+          events: [{ type: 3, timestamp: 1_700_000_000_000, data: { source: 3, x: 0, y: 200 } }],
+        },
+      },
+      error: undefined,
+    } as any);
+
+    const response = await POST(
+      new Request('http://localhost/api/record', {
+        method: 'POST',
+        headers: { 'x-umami-cache': 'token' },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(saveRecording).toHaveBeenCalledWith(expect.objectContaining({ hasInteraction: true }));
   });
 });
