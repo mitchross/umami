@@ -8,8 +8,10 @@ import {
   getReplayViewport,
   hasReplayableFullSnapshot,
   hasReplayFullSnapshot,
+  hasReplayInteraction,
   hasReplayMeta,
   REPLAY_EVENT_FRAGMENT_TYPE,
+  REPLAY_HUMAN_INPUT_TAG,
   restoreReplayEventFragments,
 } from './replay';
 
@@ -170,4 +172,35 @@ test('getReplayPageChanges falls back to rrweb meta hrefs', () => {
     { url: 'a.test/two', timestamp: 5_000 },
   ]);
   expect(getReplayUrlAt([], 1)).toBeNull();
+});
+
+test('hasReplayInteraction counts clicks, scrolls, input, touch and the recorder marker', () => {
+  const incremental = (source: number, extra = {}) => ({
+    type: 3,
+    timestamp: 1,
+    data: { source, ...extra },
+  });
+
+  expect(hasReplayInteraction([incremental(2, { type: 2 })])).toBe(true);
+  expect(hasReplayInteraction([incremental(3)])).toBe(true);
+  expect(hasReplayInteraction([incremental(5)])).toBe(true);
+  expect(hasReplayInteraction([incremental(6)])).toBe(true);
+  expect(
+    hasReplayInteraction([{ type: 5, timestamp: 1, data: { tag: REPLAY_HUMAN_INPUT_TAG } }]),
+  ).toBe(true);
+});
+
+test('hasReplayInteraction ignores snapshots, mutations, mouse moves and focus changes', () => {
+  expect(hasReplayInteraction(undefined)).toBe(false);
+  expect(
+    hasReplayInteraction([
+      { type: 4, timestamp: 1, data: { href: 'https://example.com', width: 1, height: 1 } },
+      fullSnapshot,
+      { type: 3, timestamp: 2, data: { source: 0 } },
+      { type: 3, timestamp: 3, data: { source: 1, positions: [{ x: 956, y: 419 }] } },
+      { type: 3, timestamp: 4, data: { source: 2, type: 5 } },
+      { type: 3, timestamp: 5, data: { source: 2, type: 6 } },
+      { type: 5, timestamp: 6, data: { tag: 'url-change' } },
+    ]),
+  ).toBe(false);
 });

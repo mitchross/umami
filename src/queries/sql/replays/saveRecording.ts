@@ -12,6 +12,7 @@ export interface SaveRecordingArgs {
   chunkIndex: number;
   events: any[];
   eventCount: number;
+  hasInteraction?: boolean;
   startedAt: Date;
   endedAt: Date;
 }
@@ -30,6 +31,7 @@ async function relationalQuery({
   chunkIndex,
   events,
   eventCount,
+  hasInteraction,
   startedAt,
   endedAt,
 }: SaveRecordingArgs) {
@@ -44,6 +46,7 @@ async function relationalQuery({
       chunkIndex,
       events: compressed as any,
       eventCount,
+      hasInteraction,
       startedAt,
       endedAt,
     },

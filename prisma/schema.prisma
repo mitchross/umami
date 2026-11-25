@@ -413,16 +413,18 @@ model Share {
 }
 
 model SessionReplay {
-  id         String    @id() @map("replay_id") @db.Uuid
-  websiteId  String    @map("website_id") @db.Uuid
-  sessionId  String    @map("session_id") @db.Uuid
-  visitId    String    @map("visit_id") @db.Uuid
-  chunkIndex Int       @map("chunk_index") @db.Integer
-  events     Bytes     @map("events")
-  eventCount Int       @map("event_count") @db.Integer
-  startedAt  DateTime  @map("started_at") @db.Timestamptz(6)
-  endedAt    DateTime  @map("ended_at") @db.Timestamptz(6)
-  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  id             String    @id() @map("replay_id") @db.Uuid
+  websiteId      String    @map("website_id") @db.Uuid
+  sessionId      String    @map("session_id") @db.Uuid
+  visitId        String    @map("visit_id") @db.Uuid
+  chunkIndex     Int       @map("chunk_index") @db.Integer
+  events         Bytes     @map("events")
+  eventCount     Int       @map("event_count") @db.Integer
+  startedAt      DateTime  @map("started_at") @db.Timestamptz(6)
+  endedAt        DateTime  @map("ended_at") @db.Timestamptz(6)
+  createdAt      DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  // null for chunks saved before this column existed
+  hasInteraction Boolean?  @map("has_interaction")
 
   website Website @relation(fields: [websiteId], references: [id])
 
