@@ -14,10 +14,10 @@ import {
   useUpdateQuery,
   useWebsiteSessionQuery,
 } from '@/components/hooks';
-import { type ReplaySource, useReplays } from '@/store/replays';
 import { touch } from '@/components/hooks/useModified';
-import { getReplayViewport } from '@/lib/replay';
-import { ReplayPlayer } from './ReplayPlayer';
+import { getReplayFrameViewport } from '@/lib/replay';
+import { type ReplaySource, useReplays } from '@/store/replays';
+import { preloadReplayPlayer, ReplayPlayer } from './ReplayPlayer';
 import { ReplaySaveForm } from './ReplaySaveForm';
 
 type ReplayOrientation = 'portrait' | 'landscape';
@@ -50,7 +50,8 @@ export function ReplayPlayback({
   const storedReplaySource = useReplays(state => state.source);
   const getReplayId = (r: any) => r.visitId || r.id;
 
-  const navigationReplays = replayWebsiteId === websiteId && storedReplaySource === replaySource ? replays : [];
+  const navigationReplays =
+    replayWebsiteId === websiteId && storedReplaySource === replaySource ? replays : [];
   const currentIndex = navigationReplays.findIndex(r => getReplayId(r) === replayId);
   const prevReplay = currentIndex > 0 ? navigationReplays[currentIndex - 1] : null;
   const nextReplay =
@@ -61,7 +62,7 @@ export function ReplayPlayback({
   const navigateToReplay = (id: string) => {
     router.push(updateParams({ replay: id }));
   };
-  const replayViewport = useMemo(() => getReplayViewport(replay?.events), [replay?.events]);
+  const replayViewport = useMemo(() => getReplayFrameViewport(replay?.events), [replay?.events]);
   const replayOrientation: ReplayOrientation | null = replayViewport
     ? replayViewport.height > replayViewport.width
       ? 'portrait'
@@ -70,7 +71,12 @@ export function ReplayPlayback({
       ? 'landscape'
       : null;
 
-  const saved = savedState?.replayId === replayId ? savedState.isSaved : (replaySaved?.isSaved ?? false);
+  const saved =
+    savedState?.replayId === replayId ? savedState.isSaved : (replaySaved?.isSaved ?? false);
+
+  useEffect(() => {
+    preloadReplayPlayer().catch(() => null);
+  }, []);
 
   useEffect(() => {
     onReplayStateChange?.(replayOrientation);
@@ -87,7 +93,9 @@ export function ReplayPlayback({
         e.metaKey ||
         e.shiftKey ||
         e.isComposing ||
-        target?.closest('input, textarea, select, [contenteditable="true"], [role="listbox"], [role="menu"], [role="slider"]')
+        target?.closest(
+          'input, textarea, select, [contenteditable="true"], [role="listbox"], [role="menu"], [role="slider"]',
+        )
       ) {
         return;
       }

@@ -1,0 +1,150 @@
+.urlBar {
+  max-width: 100%;
+  min-height: 36px;
+  margin-bottom: 8px;
+  padding: 2px 4px 2px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--zen-border);
+  background: var(--zen-surface-sunken);
+  font-family: monospace;
+  font-size: 13px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.url {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pageCount {
+  opacity: 0.7;
+  white-space: nowrap;
+  font-family: monospace;
+}
+
+.pageMenu {
+  max-height: min(60vh, 420px);
+  max-width: min(90vw, 560px);
+  overflow-y: auto;
+}
+
+.pageTime {
+  min-width: 52px;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.pageUrl {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.frame {
+  position: relative;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--zen-border);
+  background: var(--zen-surface-sunken);
+}
+
+.hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--zen-fg-muted);
+}
+
+/* rrweb-player ships a white light theme; match the dashboard instead. */
+.frame :global(.rr-player) {
+  float: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--zen-surface-sunken);
+}
+
+.frame :global(.rr-player__frame) {
+  background: var(--zen-surface-sunken);
+}
+
+.frame :global(.rr-controller) {
+  border-radius: 0 !important;
+  border-top: 1px solid var(--zen-border);
+  background: var(--zen-surface-raised) !important;
+  color: var(--zen-fg);
+}
+
+.frame :global(.rr-timeline__time) {
+  color: var(--zen-fg) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.frame :global(.rr-progress) {
+  background: var(--zen-border) !important;
+  border-color: var(--zen-surface-raised) !important;
+}
+
+.frame :global(.rr-progress__step) {
+  background: color-mix(in srgb, var(--zen-primary) 35%, transparent) !important;
+}
+
+.frame :global(.rr-progress__handler) {
+  background: var(--zen-primary) !important;
+}
+
+.frame :global(.rr-controller__btns button) {
+  color: var(--zen-fg) !important;
+}
+
+.frame :global(.rr-controller__btns button svg) {
+  fill: currentColor;
+}
+
+.frame :global(.rr-controller__btns button:active) {
+  background: var(--zen-interactive-bg-pressed) !important;
+}
+
+.frame :global(.rr-controller__btns button.active) {
+  color: var(--zen-primary-fg) !important;
+  background: var(--zen-primary) !important;
+}
+
+.frame :global(.switch label::before) {
+  background: var(--zen-border) !important;
+}
+
+.frame :global(.switch input[type="checkbox"]:checked + label::before) {
+  background: var(--zen-primary) !important;
+}
+
+/* Portrait replays make the frame narrow; keep the controls on one line. */
+.frame :global(.rr-timeline) {
+  width: 94% !important;
+}
+
+.frame :global(.rr-timeline__time) {
+  width: 64px !important;
+}
+
+.frame :global(.rr-controller__btns) {
+  flex-wrap: nowrap !important;
+  max-width: 100%;
+}
+
+.frame :global(.switch .label) {
+  margin: 0 4px !important;
+  font-size: 12px;
+  white-space: nowrap;
+}
