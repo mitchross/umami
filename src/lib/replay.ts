@@ -190,6 +190,103 @@ export function getReplayViewport(events: any[] | null | undefined) {
   };
 }
 
+// rrweb IncrementalSource.ViewportResize.
+const VIEWPORT_RESIZE_SOURCE = 4;
+
+const MIN_FRAME_ASPECT_RATIO = 0.25;
+const MAX_FRAME_ASPECT_RATIO = 2.5;
+const DEFAULT_FRAME_ASPECT_RATIO = 9 / 16;
+
+/**
+ * The viewport the visitor spent the most time in. Phones flip between sizes as the browser
+ * toolbar hides, so the first meta event is often not the size most of the replay is shown at.
+ */
+export function getReplayFrameViewport(events: any[] | null | undefined) {
+  if (!Array.isArray(events)) {
+    return null;
+  }
+
+  const durations = new Map<string, { width: number; height: number; ms: number }>();
+  let current: { width: number; height: number } | null = null;
+  let since = 0;
+  let lastTimestamp = 0;
+
+  const addTime = (viewport: { width: number; height: number }, ms: number) => {
+    const key = `${viewport.width}x${viewport.height}`;
+    const entry = durations.get(key) ?? { ...viewport, ms: 0 };
+
+    entry.ms += Math.max(0, ms);
+    durations.set(key, entry);
+  };
+
+  for (const event of events) {
+    const timestamp = getReplayTimestamp(event);
+
+    if (timestamp === null) {
+      continue;
+    }
+
+    lastTimestamp = Math.max(lastTimestamp, timestamp);
+
+    const isViewport =
+      event?.type === RRWEB_EVENT_TYPE.Meta ||
+      (event?.type === RRWEB_EVENT_TYPE.IncrementalSnapshot &&
+        event?.data?.source === VIEWPORT_RESIZE_SOURCE);
+    const width = isViewport ? getReplayDimension(event.data?.width) : null;
+    const height = isViewport ? getReplayDimension(event.data?.height) : null;
+
+    if (!width || !height) {
+      continue;
+    }
+
+    if (current) {
+      addTime(current, timestamp - since);
+    }
+
+    current = { width, height };
+    since = timestamp;
+  }
+
+  if (!current) {
+    return null;
+  }
+
+  addTime(current, lastTimestamp - since);
+
+  let best: { width: number; height: number; ms: number } | null = null;
+
+  for (const entry of durations.values()) {
+    if (!best || entry.ms > best.ms) {
+      best = entry;
+    }
+  }
+
+  return best ? { width: best.width, height: best.height } : null;
+}
+
+/** Largest frame with the replay's aspect ratio that fits the space, so there are no letterbox bars. */
+export function getReplayFrameSize(
+  viewport: { width: number; height: number } | null | undefined,
+  maxWidth: number,
+  maxHeight: number,
+) {
+  const ratio = viewport
+    ? Math.min(
+        Math.max(viewport.height / viewport.width, MIN_FRAME_ASPECT_RATIO),
+        MAX_FRAME_ASPECT_RATIO,
+      )
+    : DEFAULT_FRAME_ASPECT_RATIO;
+  let width = Math.max(1, Math.round(maxWidth));
+  let height = Math.round(width * ratio);
+
+  if (height > maxHeight) {
+    height = Math.max(1, Math.round(maxHeight));
+    width = Math.max(1, Math.round(height / ratio));
+  }
+
+  return { width, height };
+}
+
 function getReplayTimestamp(event: any) {
   const timestamp = Number(event?.timestamp);
 
@@ -295,17 +392,91 @@ export function getReplayPageChanges(
   return changes.filter((change, index) => index === 0 || change.url !== changes[index - 1].url);
 }
 
-/** The page shown at `timestamp`: the last change at or before it, else the first page. */
-export function getReplayUrlAt(changes: ReplayPageChange[], timestamp: number) {
-  let current = changes[0]?.url ?? null;
+/** Index of the page shown at `timestamp`: the last change at or before it, else the first page. */
+export function getReplayPageIndexAt(changes: ReplayPageChange[], timestamp: number) {
+  if (!changes.length) {
+    return -1;
+  }
 
-  for (const change of changes) {
-    if (change.timestamp > timestamp) {
+  let index = 0;
+
+  for (let i = 0; i < changes.length; i++) {
+    if (changes[i].timestamp > timestamp) {
       break;
     }
 
-    current = change.url;
+    index = i;
   }
 
-  return current;
+  return index;
+}
+
+/** The page shown at `timestamp`: the last change at or before it, else the first page. */
+export function getReplayUrlAt(changes: ReplayPageChange[], timestamp: number) {
+  return changes[getReplayPageIndexAt(changes, timestamp)]?.url ?? null;
+}
+
+/** Playback offset as m:ss, or h:mm:ss past an hour. */
+export function formatReplayOffset(ms: number) {
+  const totalSeconds = Math.max(0, Math.floor((Number.isFinite(ms) ? ms : 0) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+
+  return hours
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}`
+    : `${minutes}:${seconds}`;
+}
+
+export type ReplayShortcut = 'toggle' | 'back' | 'forward';
+
+/** Keyboard shortcut for the player. Plain arrows stay free for switching replays. */
+export function getReplayShortcut(event: {
+  key: string;
+  altKey?: boolean;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  shiftKey?: boolean;
+  isComposing?: boolean;
+  defaultPrevented?: boolean;
+  target?: { closest?: (selector: string) => unknown } | null;
+}): ReplayShortcut | null {
+  if (
+    event.defaultPrevented ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.isComposing
+  ) {
+    return null;
+  }
+
+  if (
+    event.target?.closest?.(
+      'input, textarea, select, [contenteditable="true"], [role="listbox"], [role="menu"], [role="slider"]',
+    )
+  ) {
+    return null;
+  }
+
+  if (event.shiftKey) {
+    if (event.key === 'ArrowLeft') return 'back';
+    if (event.key === 'ArrowRight') return 'forward';
+
+    return null;
+  }
+
+  // Space on a focused button already clicks it.
+  if ((event.key === ' ' || event.key === 'k') && !event.target?.closest?.('button, a')) {
+    return 'toggle';
+  }
+
+  return null;
+}
+
+/** A remembered playback speed, if it is still one of the offered options. */
+export function parseReplaySpeed(value: unknown, options: number[]) {
+  const speed = Number(value);
+
+  return options.includes(speed) ? speed : null;
 }
